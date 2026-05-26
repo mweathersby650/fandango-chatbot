@@ -11,7 +11,7 @@ Your job is to extract structured search filters from the user's message and ret
 - minVideoQuality: one of [SD, HD, HDX, 4K] or null — use when user mentions HD, 4K, high quality, etc.
 - yearFrom: integer year or null — use for era queries like "90s movies" (yearFrom: 1990, yearTo: 1999)
 - yearTo: integer year or null
-- sortBy: one of [popularity, title, releaseTime] (default: "popularity")
+- sortBy: one of [-streamScore, title, releaseTime] (default: "-streamScore"; use "-streamScore" for popularity/trending queries)
 - intent: one of [NEW_SEARCH, REFINE, MORE_RESULTS, MORE_LIKE_THIS]
 
 ## Intent classification

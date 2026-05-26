@@ -10,9 +10,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
@@ -56,8 +53,15 @@ public class VuduContentService {
         sb.append("/type/program/type/bundle");
         sb.append("/count/").append(PAGE_SIZE);
         sb.append("/offset/").append(offset);
-        sb.append("/sortBy/").append(filters.sortBy() != null ? filters.sortBy() : "popularity");
+        sb.append("/sortBy/").append(filters.sortBy() != null ? filters.sortBy() : "-streamScore");
         sb.append("/dimensionality/any");
+        sb.append("/includePreOrders/true");
+        if (filters.yearFrom() != null) {
+            sb.append("/releaseTimeMin/").append(filters.yearFrom()).append("-01-01");
+        }
+        if (filters.yearTo() != null) {
+            sb.append("/releaseTimeMax/").append(filters.yearTo()).append("-12-31");
+        }
         sb.append("/followup/genres");
         sb.append("/followup/ratingsSummaries");
         sb.append("/followup/usefulStreamableOffers");
@@ -138,7 +142,6 @@ public class VuduContentService {
                 .filter(c -> matchesRating(c, filters.mpaaRating()))
                 .filter(c -> matchesPrice(c, filters.maxPrice(), filters.offerType()))
                 .filter(c -> matchesQuality(c, filters.minVideoQuality()))
-                .filter(c -> matchesEra(c, filters.yearFrom(), filters.yearTo()))
                 .toList();
     }
 
@@ -171,15 +174,6 @@ public class VuduContentService {
             int idx = hierarchy.indexOf(o.videoQuality() != null ? o.videoQuality().toUpperCase() : "");
             return idx >= minIdx;
         });
-    }
-
-    private boolean matchesEra(VuduContent c, Integer yearFrom, Integer yearTo) {
-        if (yearFrom == null && yearTo == null) return true;
-        if (c.releaseTime() == null || c.releaseTime() == 0) return true;
-        int year = LocalDate.ofInstant(Instant.ofEpochMilli(c.releaseTime()), ZoneOffset.UTC).getYear();
-        if (yearFrom != null && year < yearFrom) return false;
-        if (yearTo != null && year > yearTo) return false;
-        return true;
     }
 
     private String buildDeepLink(String title, String contentId) {

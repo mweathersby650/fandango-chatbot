@@ -22,6 +22,6 @@ public record ContentFilters(
 
     public static ContentFilters empty() {
         return new ContentFilters("movies", null, null, null,
-                null, null, null, null, "popularity", IntentType.NEW_SEARCH);
+                null, null, null, null, "-streamScore", IntentType.NEW_SEARCH);
     }
 }
