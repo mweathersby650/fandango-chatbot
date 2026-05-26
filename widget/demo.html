@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fandango At Home – Chatbot Demo</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      margin: 0;
+      background: #f9f9f9;
+      color: #1a1a1a;
+    }
+    header {
+      background: #d4001a;
+      color: #fff;
+      padding: 16px 24px;
+      font-size: 20px;
+      font-weight: 700;
+    }
+    main {
+      padding: 40px 24px;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    p { line-height: 1.6; color: #444; }
+    .hint {
+      background: #fff3cd;
+      border: 1px solid #ffc107;
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 14px;
+      margin-top: 24px;
+    }
+  </style>
+</head>
+<body>
+  <header>🎬 Fandango At Home</header>
+  <main>
+    <h1>Movie Discovery Chatbot Demo</h1>
+    <p>
+      This page simulates the Fandango At Home browsing experience.
+      Click the red film icon in the bottom-right corner to open the chatbot.
+    </p>
+    <p>Try asking things like:</p>
+    <ul>
+      <li>"A scary movie under $4"</li>
+      <li>"Family comedy in 4K"</li>
+      <li>"Sci-fi films from the 90s"</li>
+      <li>"Only show HD or better" (as a follow-up)</li>
+      <li>"Show me more"</li>
+    </ul>
+    <div class="hint">
+      <strong>Dev note:</strong> The widget is pointing at <code>http://localhost:8080</code>.
+      Make sure the Spring Boot service is running with a valid <code>ANTHROPIC_API_KEY</code>.
+    </div>
+  </main>
+
+  <script src="chatbot-widget.js"></script>
+  <fandango-chatbot api-url="http://localhost:8080"></fandango-chatbot>
+</body>
+</html>
