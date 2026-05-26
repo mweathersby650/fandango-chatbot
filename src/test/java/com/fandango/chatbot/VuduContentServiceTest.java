@@ -40,30 +40,31 @@ class VuduContentServiceTest {
         String wrappedJson = "/*-secure-\n{\"content\":[]}\n*/";
         when(responseSpec.body(String.class)).thenReturn(wrappedJson);
 
-        ContentFilters filters = ContentFilters.empty();
-        List<VuduContent> results = service.search(filters, 0);
+        List<VuduContent> results = service.search(ContentFilters.empty(), 0);
 
         assertThat(results).isEmpty();
     }
 
+    // Vudu wraps every scalar in a single-element array: "title": ["Foo"]
     @Test
-    void parsesContentFields() {
+    void parsesArrayWrappedContentFields() {
         String json = """
             /*-secure-
             {
               "content": [{
-                "contentId": "9505",
-                "title": "Masters of the Universe",
-                "mpaaRating": "PG",
-                "tomatoMeter": 16,
-                "posterUrl": "https://example.com/poster.jpg",
-                "genres": { "genre": [{"name": "Action"}, {"name": "Adventure"}] },
-                "contentVariants": {
-                  "variant": [{
-                    "videoQuality": "HD",
-                    "offers": { "offer": [{"offerType": "rent", "price": 3.99}] }
-                  }]
-                }
+                "contentId": ["9505"],
+                "title": ["Masters of the Universe"],
+                "mpaaRating": ["PG"],
+                "tomatoMeter": ["16"],
+                "posterUrl": ["https://example.com/poster.jpg"],
+                "genres": [{ "genre": [
+                  {"name": ["Action"]},
+                  {"name": ["Adventure"]}
+                ]}],
+                "contentVariants": [{ "variant": [{
+                  "videoQuality": ["HD"],
+                  "offers": [{ "offer": [{"offerType": ["rent"], "price": ["3.99"]}] }]
+                }]}]
               }]
             }
             */
@@ -90,16 +91,18 @@ class VuduContentServiceTest {
             {
               "content": [
                 {
-                  "contentId": "1", "title": "Cheap Movie",
-                  "contentVariants": {
-                    "variant": [{"videoQuality": "HD", "offers": {"offer": [{"offerType": "rent", "price": 2.99}]}}]
-                  }
+                  "contentId": ["1"], "title": ["Cheap Movie"],
+                  "contentVariants": [{ "variant": [{
+                    "videoQuality": ["HD"],
+                    "offers": [{ "offer": [{"offerType": ["rent"], "price": ["2.99"]}] }]
+                  }]}]
                 },
                 {
-                  "contentId": "2", "title": "Expensive Movie",
-                  "contentVariants": {
-                    "variant": [{"videoQuality": "HD", "offers": {"offer": [{"offerType": "rent", "price": 9.99}]}}]
-                  }
+                  "contentId": ["2"], "title": ["Expensive Movie"],
+                  "contentVariants": [{ "variant": [{
+                    "videoQuality": ["HD"],
+                    "offers": [{ "offer": [{"offerType": ["rent"], "price": ["9.99"]}] }]
+                  }]}]
                 }
               ]
             }
@@ -108,7 +111,7 @@ class VuduContentServiceTest {
         when(responseSpec.body(String.class)).thenReturn(json);
 
         ContentFilters filters = new ContentFilters("movies", null, null, 4.99,
-                "rent", null, null, null, "popularity", IntentType.NEW_SEARCH);
+                "rent", null, null, null, "-streamScore", IntentType.NEW_SEARCH);
 
         List<VuduContent> results = service.search(filters, 0);
 
@@ -120,7 +123,7 @@ class VuduContentServiceTest {
     void buildsCorrectDeepLink() {
         String json = """
             /*-secure-
-            {"content": [{"contentId": "9505", "title": "Masters of the Universe"}]}
+            {"content": [{"contentId": ["9505"], "title": ["Masters of the Universe"]}]}
             */
             """;
         when(responseSpec.body(String.class)).thenReturn(json);
@@ -129,5 +132,17 @@ class VuduContentServiceTest {
 
         assertThat(results.get(0).deepLink())
                 .isEqualTo("https://athome.fandango.com/content/browse/details/Masters-of-the-Universe/9505");
+    }
+
+    @Test
+    void yearRangeAppearsInUrl() {
+        when(responseSpec.body(String.class)).thenReturn("/*-secure-{\"content\":[]}\n*/");
+
+        ContentFilters filters = new ContentFilters("movies", null, null, null,
+                null, null, 1980, 1989, "-streamScore", IntentType.NEW_SEARCH);
+        service.search(filters, 0);
+
+        verify(requestSpec).uri(argThat((String url) ->
+                url.contains("releaseTimeMin/1980-01-01") && url.contains("releaseTimeMax/1989-12-31")));
     }
 }

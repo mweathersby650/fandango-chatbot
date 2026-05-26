@@ -1,6 +1,7 @@
 package com.fandango.chatbot.service;
 
 import com.fandango.chatbot.model.ContentFilters;
+import com.fandango.chatbot.model.IntentType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,8 +52,15 @@ public class IntentExtractionService {
                     )
             ).getResult().getOutput().getText();
 
+            // small models often wrap JSON in ```json ... ``` fences — strip them
+            response = response.replaceAll("(?s)^```[a-zA-Z]*\\s*", "").replaceAll("(?s)\\s*```$", "").trim();
             log.debug("Intent extraction response: {}", response);
-            return outputConverter.convert(response);
+            ContentFilters result = outputConverter.convert(response);
+            // guard against model omitting the intent field
+            if (result.intent() == null) {
+                result = result.withIntent(IntentType.NEW_SEARCH);
+            }
+            return result;
 
         } catch (Exception e) {
             log.error("Intent extraction failed, defaulting to NEW_SEARCH", e);

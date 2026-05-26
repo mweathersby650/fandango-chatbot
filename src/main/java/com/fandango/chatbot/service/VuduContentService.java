@@ -91,38 +91,36 @@ public class VuduContentService {
     }
 
     private VuduContent mapContent(JsonNode node) {
-        String contentId = textOf(node, "contentId");
-        String title = textOf(node, "title");
-        String description = textOf(node, "description");
-        Long releaseTime = node.path("releaseTime").asLong(0);
-        Integer lengthSeconds = node.path("lengthSeconds").asInt(0);
-        String mpaaRating = textOf(node, "mpaaRating");
-        String posterUrl = textOf(node, "posterUrl");
-        Integer tomatoMeter = node.path("tomatoMeter").asInt(-1);
-        String quality = textOf(node, "bestDashVideoQuality");
+        // Every field in the Vudu API response is array-wrapped: "title": ["Foo"]
+        String contentId = firstText(node, "contentId");
+        String title     = firstText(node, "title");
+        String description = firstText(node, "description");
+        Long releaseTime = firstLong(node, "releaseTime");
+        Integer lengthSeconds = firstInt(node, "lengthSeconds");
+        String mpaaRating = firstText(node, "mpaaRating");
+        String posterUrl  = firstText(node, "posterUrl");
+        Integer tomatoMeter = firstInt(node, "tomatoMeter");
+        String quality    = firstText(node, "bestDashVideoQuality");
 
         List<String> genres = new ArrayList<>();
-        JsonNode genreNode = node.path("genres").path("genre");
-        if (genreNode.isArray()) {
-            for (JsonNode g : genreNode) {
-                String name = g.path("name").asText(null);
+        for (JsonNode genreList : node.path("genres")) {
+            for (JsonNode g : genreList.path("genre")) {
+                String name = firstTextNode(g.path("name"));
                 if (name != null) genres.add(name);
             }
         }
 
         List<VuduOffer> offers = new ArrayList<>();
-        JsonNode variantNode = node.path("contentVariants").path("variant");
-        if (variantNode.isArray()) {
-            for (JsonNode variant : variantNode) {
-                String vq = textOf(variant, "videoQuality");
-                JsonNode offerNode = variant.path("offers").path("offer");
-                if (offerNode.isArray()) {
-                    for (JsonNode offer : offerNode) {
-                        offers.add(new VuduOffer(
-                                textOf(offer, "offerType"),
-                                offer.path("price").asDouble(0),
-                                vq
-                        ));
+        for (JsonNode variantList : node.path("contentVariants")) {
+            for (JsonNode variant : variantList.path("variant")) {
+                String vq = firstText(variant, "videoQuality");
+                for (JsonNode offerList : variant.path("offers")) {
+                    for (JsonNode offer : offerList.path("offer")) {
+                        String offerType = firstText(offer, "offerType");
+                        Double price = firstDouble(offer, "price");
+                        if (offerType != null && price != null) {
+                            offers.add(new VuduOffer(offerType, price, vq));
+                        }
                     }
                 }
             }
@@ -132,7 +130,7 @@ public class VuduContentService {
 
         return new VuduContent(contentId, title, description, releaseTime,
                 lengthSeconds, mpaaRating, posterUrl,
-                tomatoMeter >= 0 ? tomatoMeter : null,
+                tomatoMeter != null && tomatoMeter >= 0 ? tomatoMeter : null,
                 quality, genres, offers, deepLink);
     }
 
@@ -182,8 +180,35 @@ public class VuduContentService {
         return DEEP_LINK_BASE + "/" + slug + "/" + contentId;
     }
 
-    private String textOf(JsonNode node, String field) {
-        JsonNode f = node.path(field);
-        return f.isMissingNode() || f.isNull() ? null : f.asText(null);
+    // Vudu wraps every scalar in a single-element array: "title": ["Foo"]
+    private String firstText(JsonNode node, String field) {
+        return firstTextNode(node.path(field));
+    }
+
+    private String firstTextNode(JsonNode n) {
+        if (n.isMissingNode() || n.isNull()) return null;
+        if (n.isArray()) {
+            JsonNode first = n.get(0);
+            return (first == null || first.isNull()) ? null : first.asText(null);
+        }
+        return n.asText(null);
+    }
+
+    private Long firstLong(JsonNode node, String field) {
+        JsonNode n = node.path(field);
+        if (n.isArray()) n = n.get(0);
+        return (n == null || n.isNull() || n.isMissingNode()) ? null : n.asLong(0);
+    }
+
+    private Integer firstInt(JsonNode node, String field) {
+        JsonNode n = node.path(field);
+        if (n.isArray()) n = n.get(0);
+        return (n == null || n.isNull() || n.isMissingNode()) ? null : n.asInt(-1);
+    }
+
+    private Double firstDouble(JsonNode node, String field) {
+        JsonNode n = node.path(field);
+        if (n.isArray()) n = n.get(0);
+        return (n == null || n.isNull() || n.isMissingNode()) ? null : n.asDouble(0);
     }
 }
