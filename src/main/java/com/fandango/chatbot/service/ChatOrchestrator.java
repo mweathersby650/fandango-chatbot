@@ -11,6 +11,8 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 public class ChatOrchestrator {
@@ -33,6 +35,10 @@ public class ChatOrchestrator {
         this.responseFormatterService = responseFormatterService;
     }
 
+    // matches "80s", "1980s", "the 80s", "80's"
+    private static final Pattern DECADE_PATTERN = Pattern.compile(
+            "(?:^|\\s)(?:the\\s+)?(\\d{2}|1[0-9]{3})(?:'?s)(?:\\s|$)", Pattern.CASE_INSENSITIVE);
+
     public ChatResponse handle(ChatRequest request) {
         String sessionId = request.sessionId() != null ? request.sessionId() : UUID.randomUUID().toString();
         ChatSession session = sessionStore.get(sessionId);
@@ -43,6 +49,7 @@ public class ChatOrchestrator {
 
         // 1. Extract intent
         ContentFilters extracted = intentExtractionService.extract(request.message(), session.getActiveFilters());
+        extracted = applyDecadeFallback(extracted, request.message());
         log.debug("Extracted filters: {}", extracted);
 
         // 2. Determine offset
@@ -88,6 +95,29 @@ public class ChatOrchestrator {
 
         boolean moreAvailable = results.size() == PAGE_SIZE;
         return new ChatResponse(sessionId, reply, results, moreAvailable);
+    }
+
+    /**
+     * If the user's message references a decade ("80s", "1990s") but the LLM omitted
+     * yearFrom/yearTo, fill them in programmatically so year filtering is reliable.
+     */
+    private ContentFilters applyDecadeFallback(ContentFilters filters, String message) {
+        if (filters.yearFrom() != null) return filters; // LLM already set it
+        Matcher m = DECADE_PATTERN.matcher(message);
+        if (!m.find()) return filters;
+        String raw = m.group(1);
+        int decade;
+        if (raw.length() == 2) {
+            // "80s" → determine century: ≤ current decade prefix use 1900s
+            int prefix = Integer.parseInt(raw);
+            decade = (prefix <= 20) ? 2000 + prefix : 1900 + prefix;
+        } else {
+            decade = (Integer.parseInt(raw) / 10) * 10;
+        }
+        log.debug("Decade fallback: {} → {}-{}", raw, decade, decade + 9);
+        return new ContentFilters(filters.superType(), filters.genre(), filters.mpaaRating(),
+                filters.maxPrice(), filters.offerType(), filters.minVideoQuality(),
+                decade, decade + 9, filters.sortBy(), filters.intent());
     }
 
     private ContentFilters buildMoreLikeThis(List<VuduContent> lastResults, ContentFilters active) {
